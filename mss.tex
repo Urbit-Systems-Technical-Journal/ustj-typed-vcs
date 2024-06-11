@@ -4,9 +4,9 @@
 
 \addbibresource{mss.bib}
 
-\newcommand{\authorname}{Ernest P. Worrell}
-\newcommand{\authorpatp}{\patp{sampel-palnet}}
-\newcommand{\affiliation}{Kamp Kikakee}
+\newcommand{\authorname}{N. E. Davis}
+\newcommand{\authorpatp}{\patp{lagrev-nocfep}}
+\newcommand{\affiliation}{Urbit Foundation}
 
 %  Make first page footer:
 \fancypagestyle{firststyle}{%
@@ -23,11 +23,11 @@
 %  Arrange subsequent pages:
 \fancyhf{}
 \fancyhead[LE]{{\urbitfont Urbit Systems Technical Journal}}
-\fancyhead[RO]{Floating-Point Arithmetic on Deterministic Systems}
+\fancyhead[RO]{Typed Revision Control}
 \fancyfoot[LE,RO]{\thepage}
 
 %%MANUSCRIPT
-\title{Ernest Goes to Mars:  An Enquiry into the Foundations of Artificial Stupidity}
+\title{Typed Revision Control}
 \author{\authorname~\authorpatp \\ \affiliation}
 \date{}
 
@@ -37,7 +37,7 @@
 \thispagestyle{firststyle}
 
 \begin{abstract}
-In this groundbreaking paper, we embark on a cosmic journey with the renowned character Ernest P. Worrell as he ventures into the unexplored realm of Martian computing. Drawing inspiration from Ernest's comically ingenious encounters with everyday challenges, we investigate the foundations of what we term "Artificial Stupidity." As Ernest grapples with Martian technology, we delve into the intricacies of programming errors, algorithmic missteps, and the curious phenomena that arise when human-like intelligence meets extraterrestrial computing systems. Our analysis sheds light on the unexpected intersections between humor, artificial intelligence, and the cosmic absurdity of Martian software. Join us in this interplanetary exploration as we unravel the mysteries of Artificial Stupidity through the lens of Ernest's interstellar escapades.
+  
 \end{abstract}
 
 % We will adjust page numbering in final editing.
@@ -48,70 +48,148 @@ In this groundbreaking paper, we embark on a cosmic journey with the renowned ch
 
 \section{Introduction}
 
-Introduce the scope of your article and investigation.
+A revision control system\footnote{Also “version control system” (VCS); “source control system”.} is responsible for tracking the state and history of assets and asset changes within a particular continuity.  It may also manage the production of assets through a build system, as used for instance by a continuous integration/continuous deployment (CI/CD) workflow.  Trivially, an RCS is a logical filesystem:  a database for managing files.  (Conventional RCSs are agnostic to the underlying disk hardware, however.\footnote{Compare other logical file systems:  network file systems like Microsoft Server Message Block (SMB) drives or distributed file systems like the Hadoop Distributed File System (HDFS) or the InterPlanetary File System (IPFS).})  Computer revision control systems have developed from the 1960s onwards once hard drives permitted files to be stored on tape rather than simply as punchcard files.  Succeeding generations have introduced new approaches and features, converging more or less on the broad functionality today afforded by Git \citep{Torvalds2005} in its elaborated form as a distributed source control system.\footnote{Notably, Git has seemingly failed to fulfill its original promise of being a fully decentralized RCS:  most users prefer to use the affordances of centralized Git services such as GitHub or GitLab.}  However, although some modest interest has been expressed for a more complete notion of type in revision control, no current system besides Urbit's Clay fully implements a typed revision-controlled filesystem.  In this article, we explore the approach of current RCSs and elaborate Clay's contributions to the ongoing task of information management and auditable, reproducible source builds.
+% Torvalds2005, https://github.com/git/git/commit/e83c5163316f89bfbde7d9ab23ca2e25604af290
 
-\section{Background and Literature}
+\section{A History of Type in RCSs}
 
-Exposite the relevant background and literature.
+The problem of type in revision control has been of both academic and practical interest for decades \citep{Perry1987}.  Essentially, can file artifacts be organized and classified in such a way as to make them susceptible of comparison across their history?  The simplest arrangement which is commonly made is to designate a file as either plaintext or binary.  A plaintext file can be updated by specifying the character offset and run length to be replaced (an example of a “diff”, or difference between two examples of text; typically these are resolved at the line level rather than character level).  Plaintext files, whether ASCII or some form of UTF, are defined by a regular format with well-understood and predictable symbol widths and offsets.  For instance, a little-endian representation of the text \texttt{'clay'} would be reproduced in ASCII hexadecimal as \texttt{0x7961.6c63} and ASCII binary as \texttt{0b111.1001.0110.0001.0110.1100.0110.0011}.  (In binary, each character has a leading zero; that is, each entry is seven bits wide plus a 1-bit zero header.)  In contrast, binary files (which is a byword for “everything else”) have arbitrary layout and offset; it may be difficult to determine how and why to compare two revisions of any given file.
+% Perry1987, https://users.ece.utexas.edu/~perry/work/papers/icse9b.pdf
 
-\begin{enumerate}
-  \item  Prefer to \texttt{enumerate}.
-  \item  It is easier to refer to than \texttt{itemize}.
-\end{enumerate}
+All modern RCSs support plaintext and binary representations of files.  Plaintext diffing at the level of line changes is straightforward; the Hunt–McIlroy algorithm is often employed \citep{Hunt1976}.\footnote{An implementation in Hoon is available at \github{https://github.com/sigilante/diff}.}  However, the most popular revision control systems (such as Subversion and Git) have included only minimal direct support for binary diffs.  Some systems only support storing successive file copies of a binary file; that is, the diff is the entire deletion of the old file and addition of the new file (e.g. CVS).  Other systems may support binary file diffs by granular block and offset.  Some RCSs support diffing particular binary files using a custom automatic merge tool.  For example, the \texttt{textconv} tool converts each version of the file to a plaintext representation and compares those representations.  (To show a diff for a changes in a \texttt{pdf} file, a configured Git instance could compare the text output of \texttt{pdfinfo} in each case as a proxy.  This is generally legible as metadata but does not of itself include sufficient information to reproduce or reverse the intervening changes; the underlying RCS still stores the entire binary in its conventional representation.)  In any case, type beyond file extension is not generally supported by RCSs; they cannot meaningfully merge files classified as binary.\footnote{As always, there are exceptions to the rules.  Git, for instance, can use a “binary diff” format on exact preimages.}
+%  Hunt, James W.; McIlroy, M. Douglas (June 1976). "An Algorithm for Differential File Comparison" (PDF). Computing Science Technical Report. 41. Bell Laboratories.  http://www.cs.dartmouth.edu/~doug/diff.pdf
 
-\noindent
-Mark \texttt{\textbackslash noindent} in paragraphs that continue the thought of an \texttt{\textbackslash enumerate} block.
+A general-purpose notion of file type is not isomorphic to conventional type in programming language theory.  For instance, consider a JSON file.  The following are equivalent as JSON artifacts:
 
-\section{Urbit's Implementation}
-
-Oftentimes you will then turn to exploring how Urbit or closely related systems like Nockchain have approached or considered a problem.  You can look at a PR like \citetpr{urbit_urbit_6891}.
-
-\lstset{language=C}
 \begin{lstlisting}
-#include <stdio.h>
-
-double compute(float a, float b) {
-    return a * a + b * b;
-}
-
-int main() {
-    float x = 2.5;
-    float y = 3.7;
-
-    double result = compute(x, y);
-
-    printf("Result: %lf\n", result);
-
-    return 0;
+{
+  "name": "Alice",
+  "age": 30
 }
 \end{lstlisting}
 
+\begin{lstlisting}
+{
+  "age": 30,
+  "name": "Alice"
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+{ "name": "Alice", "age": 30, }
+\end{lstlisting}
+
+Indeed, since JSON is structurally agnostic to syntactic whitespace, an infinite number of equivalent files could be constructed.  Clearly as plaintext representations, each of these differ, yet they are fully equivalent as JSON artifacts.  An RCS which can recognize a JSON input can meaningfully store them as equivalent, while an RCS that makes only the trivial distinction between plaintext and binary must consider them all to be different.  Furthermore, a JSON-aware RCS could meaningfully merge these files whereas a plaintext/binary RCS could not.  Finally, a JSON-aware RCS could yield a different plaintext output when asked to produce the file, as it could normalize the whitespace to a canonical form.  This may be considered by other systems to be an ``incorrect'' round trip.
+
+Thus we must consider two intersecting notions of file type:
+\begin{enumerate}
+  \item The file type as understood by the system, typically based on bitwise reproducibility (e.g. plaintext, binary).
+  \item The file type as understood conceptually, typically based on structural relationships (e.g. JSON, XML/HTML, Word \texttt{docx}, etc.).
+\end{enumerate}
+
 \noindent
-That code snippet was part of the text, and not a standalone entity to which we make separate repeated reference.
+The employment of an intermediate representation allows us to track changes to files and manage their history—state—more effectively.  Consider the popular JavaScript framework React, aspects of which were developed to resolve difficulties with slow repainting in browsers (for a popular explanation, see \citet{Arora2017}).  React's virtual DOM system acts as an intermediate representation between the actual DOM and the developer's code.  When a developer updates the virtual DOM, the framework compares the new virtual DOM with the previous virtual DOM and updates the real DOM only if necessary.  This allows React to optimize the rendering process and improve performance.  It also means that we can consider the structural representation of the DOM object as an intermediate representation, and the production and application of the diff as a type-aware RCS operation.
+%TODO don't use this one Arora2017 https://medium.com/@aankit35/what-problem-does-react-js-solve-for-software-developers-a06cf50be28a
+Higher-level interfaces like Microsoft Word's “Track Changes” feature \citep{MS2024} similarly resolves diffs across text and formatting within a document, an artifact processed from a file into a user-friendly representation.  While the “Track Changes” user interface is optimized for interactivity, conceptually it is quite similar to conventional merge tools from RCSs, and de facto resolves the same sorts of diffs for its particular file type.  (Indeed, one can imagine a Word-aware CLI RCS that could meaningfully merge changes to a Word document, rather than simply storing successive copies of the file.)
+%MS2024 https://support.microsoft.com/en-us/office/track-changes-in-word-197ba630-0f5f-4a8e-9a77-3712475e806a
+Thus a significant part of managing typed file data is deciding what the input, output, and diffs should look like, and the remainder is systematic application of these rules to the data.
 
-\begin{figure}
-  \begin{lstlisting}[language=Python, caption={Example Python Code}, label={lst:example}]
-  def hello_world():
-      print("Hello, world!")
-  \end{lstlisting}
-\end{figure}
-
-Refer to the code listing: Listing~\ref{lst:example}.  (Note that we don't suppress indentation since it's a float.)
+Another possible move is to abstract away from the file as hte fundamental artifact being tracked.  While Clay does not fully commit to this, in a concession to its POSIX-compliant host OS,
 
 
-\section{A Wild Ernest Appears}
+Given this frame, consider \citeauthor{Perry1987}'s taxonomy of version control for module interfaces:
+%Perry1987 https://users.ece.utexas.edu/~perry/work/papers/icse9b.pdf
 
-You can have as many sections as make sense.  Only sections and subsections appear in the table of contents.
+\begin{enumerate}
+  \item  No version control.  Files are simply replaced.
+  \item  Basic version control.  Files are versioned with a number, but no diff is applied.
+  \item  Strongly-typed version control.  Files are resolved at a structural level, such as procedures or arrays, and diffs are applied at that level.
+\end{enumerate}
 
-\section{Conclusion}
+\noindent
+In this scheme, contemporary Git-style RCS is a ``weakly-typed'' RCS:  the system is aware of versions and diffs, but typically not below the file or line level.\footnote{Oddly, Perry did not call out weak typing in his enumeration, although he did address it elsewhere in the article.}  Perry was concerned with the behavior and representation of semantic objects, rather than files or data:
 
-To summarize, why did you write it?  Why do we care?  What impact should it have on Urbit development?
+\begin{quote}
+  Version equivalence in this type of version control mechanism is defined in terms of syntactic equivalence:  data objects are equivalent if their types or structures are equivalent; operations and modules are equivalent if their signatures are equivalent.
+\end{quote}
 
-Your bibliography is a separate BibTeX file.  We use the \texttt{plainnat} bibliography style.  You can use \texttt{natbib} citation commands like \texttt{\textbackslash citep\{wikipedia\}} for parenthesized references.  Use \texttt{\textbackslash citet\{wikipedia\}} for inline references.  You can also use \texttt{\textbackslash citeauthor\{wikipedia\}} for the principal author's name.
+\noindent
+This scheme leads to a notion of version compatibility—diffs, if you will—that is analogous to type variance in classical type systems. TODO
 
-``You can use traditional TeX---or LaTeX---representations'' \citep{Varney1987}.
 
-“Or you can use fancy quotes—and symbols.”
+- frodwith
+
+https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=e572edf81da7b3130abbb9050a4854993a6124d8
+https://users.ece.utexas.edu/~perry/work/papers/icse9b.pdf
+https://urbit.org/blog/toward-a-new-clay
+https://www.microsoft.com/en-us/research/wp-content/uploads/2015/05/beyond-open-source.pdf
+https://stackoverflow.com/questions/73797/how-do-i-tell-subversion-to-treat-a-file-as-a-binary-file
+https://chat.openai.com/c/b031b6f7-d6d8-4503-98bc-370cafbfe31d
+
+From page 367 of the [Subversion book](http://svnbook.red-bean.com/en/1.5/svn-book.pdf)
+
+> In the most general sense, Subversion handles binary files more gracefully than CVS does. Because CVS uses RCS, it can only store successive full copies of a changing binary file. Subversion, however, expresses differences between files using a binary differencing algorithm, regardless of whether they contain textual or binary data. That means all files are stored differentially (compressed) in the repository.
+> 
+> CVS users have to mark binary files with -kb flags to prevent data from being garbled (due to keyword expansion and line-ending translations). They sometimes forget to do this.
+> 
+> Subversion takes the more paranoid route. First, it never performs any kind of keyword or line-ending translation unless you explicitly ask it to do so (see the section called “Keyword Substitution” and the section called “End-of-Line Character Sequences” for more details). By default, Subversion treats all file data as literal byte strings, and files are always stored in the repository in an untranslated state.
+> 
+> Second, Subversion maintains an internal notion of whether a file is “text” or “binary” data, but this notion is only extant in the working copy. During an svn update, Subversion will perform contextual merges on locally modified text files, but will not attempt to do so for binary files.
+> 
+> To determine whether a contextual merge is possible, Subversion examines the svn:mime-type property. If the file has no svn:mime-type property, or has a MIME type that is textual (e.g., text/*), Subversion assumes it is text. Otherwise, Subversion assumes the file is binary. Subversion also helps users by running a binary-detection algorithm in the svn import and svn add commands. These commands will make a good guess and then (possibly) set a binary svn:mime-type property on the file being added. (If Subversion guesses wrong, the user can always remove or hand-edit the property.)
+
+\section{Clay}
+
+Urbit provides the Clay vane at \texttt{/sys/vane/clay} to manage Unix-style files and source builds.  Clay acts as both the Unix-like filesystem and the source control vane.  While Hoon itself (\texttt{/sys/hoon}) is responsible to compile a source noun into a Hoon AST and ultimately into executable Nock, the actual construction of source input from files is delegated to the \texttt{++ford} arm of Clay.  This build process includes compiling the correct import files (such as libraries and shared structure files).  Clay is also tightly coupled to the userspace vane Gall since system updates and agent updates both occur via Clay.\footnote{We omit discussion of several other notable properties of Clay as a single-level store:  referential transparency, global addressability, and event-level persistence, for instance.}
+
+To motivate how Clay functions as a revision control filesystem, we need to briefly examine some major data structures utilized by Clay.  At the highest level, files are organized into “desks”, described in previous literature as being analogous to Git branches but really more like Git repositories.  A desk is a self-contained continuity of files; its state is the result of a history of commits.  Desks may not include links to off-desk resources.  Each desk must expose a few files at definite paths; primarily \texttt{/mar} for the marks used to read the desk contents.\footnote{While Arvo, the vanes, and userspace tools look at other definite locations, in principle one could construct a desk of arbitrary URL-safe paths as long as they are legible to Clay's build process via \texttt{/mar}.}
+
+Ultimately, Arvo and Clay deal in nouns.  A noun is a binary tree of unsigned integers.  These may be evaluated as Nock formulas or manipulated as data.  A noun is in a sense a noumenon; it is formally agnostic to the underlying hardware and is almost always accessed via some representation path (i.e. as phenomenon).  At least, to leave off of philosophy, a noun is an intermediate representation which is common to all Nock-legible data.
+
+Urbit has an immutable data model; the system state of Arvo is the unique result of the events in its history, stored as its event log.  If a noun changes, it is the result of 
+(This yields very nice properties of referential transparency and has some ramifications in library management; see \citet{Blackman2024} for more details.)
+
+commits
+diffs
+etc.
+
+While conventional file systems denote file type primarily by file suffix or a cursory search using “magic tests” on the file header, Urbit instead stores all data as a noun accessed via a mark.  A mark is essentially a representation rule for nouns.  Marks permit nouns to be stored with more granularity than the text/binary dichotomy facilitates, since details of conversion are stored as part of the mark.
+% https://unix.stackexchange.com/questions/207276/how-are-file-types-known-if-not-from-file-suffix
+
+A mark may be considered an executable media type.\footnote{A media type (formerly MIME type) is a tag identifier for the intended data format of a particular data entry.}  A mark essentially describes how to map a data representation to a noun, and from a noun back out to a data representation.  This conversion may be trivial (e.g. the binary storage of an audio file) or sophisticated (from a text stream to a linked-list UTF representation).  Data are accessed via a particular mark, and the appropriate conversion routine is invoked.\footnote{This is commonly used with JSON and the Eyre HTTP server vane, for instance.}  Clay is capable of searching for transition paths between mark representations, and in principle permits conversion between all compatible representations (if there were a path from Markdown \texttt{md} to rich text \texttt{rtf} to plaintext \texttt{txt} in marks, then the conversion is automatically supported by Clay).
+
+
+Custom filetype 
+
+\subsection[Shortcomings]{Shortcomings of Clay}
+
+As currently implemented, Clay presents several wrinkles in developer ergonomics.  Chief among these is the way that marks, as simple type tags, are underspecified.  The original philosophy of marks centered on network transmission of nouns as tagged data:
+
+\begin{quote}
+  A mark is a term (symbol) which is the Urbit equivalent of a MIME type, if MIME types were names of typed validation functions.  \ldots{} Like a MIME type, the mark is just a label. There is no way to guarantee that the sender and receiver agree on what this label means.  A noun which doesn't normalize to itself is a packet drop.  \citep[pp. 51–52]{Whitepaper}
+\end{quote}
+
+\noindent
+In practice, different Clay desks and different Urbit versions can have different mark processors (and thus different behvaior for the same tag).  No simple version system tracks these; there is no global type registry (other than the scry namespace), and any given mark is simply identified by its desk and path.  Developers have expressed a desire for a more robust mark management capability, and solutions have ranged from a global type registry (e.g. that proposed by Archetype \citep{TODO}) to using paths instead of simple tags for marks.
+
+The current architecture of Clay (largely in place by 2016 except for the unification of the former Ford vane into Clay in 2020) leads to three ongoing developer concerns:\footnote{This section benefited from discussion with \patp{tiller-tolbus} about the upcoming ``shrubbery'' project to rework Urbit's userspace.}
+% https://urbit.org/blog/toward-a-new-clay
+% https://urbit.org/blog/ford-fusion
+
+\begin{enumerate}
+  \item  Implementing RCS behavior at the file system layer seems to be incorrect for Urbit (that is, too much of a sop to Unix).  trying to do revision control at base layer, but file system is wrong layer (you just want history of actions/tx log rather than full state); see ~migrev codebases for clay state
+  \item  Desks seem to be the wrong abstraction in practice.  The theory of the desk doesn't account for actual distribution patterns people would like to use; we want one desk but one spot in file tree is capable of acting as a desk (chroot analysis); overuse of desks makes Urbit not feel as much like a filesystem you can explore
+  \item  The application system (userspace) and the build system and filesystem should be co-located.  Currently, Clay and Gall are deeply entangled but must interact via a somewhat awkward message-passing interface.  This leads to a number of ergonomic issues, such as the need to suspend a desk in order to suspend an agent.  Employing paths rather than simple tags would lead to a desire to constrain what can exist at certain paths, which of course relates to the definition of files as data structures.
+%3. application system and files should be co-located, message passing b/w C/G is weird; you have to suspend a desk, even if you want to suspend an agent, etc. C/G trying to marry each other but operate through back and forth; (Were there ever any docs written about the old Hume concept?); paths instead of tags leads you to want to constrain what can exist at certain paths; rest of shrubbery is solving for that problem
+\end{enumerate}
+
+The future of Clay likely sees it being restricted to source and build management, rather than expansion to a more fully-featured filesystem.  (In this contingency, the userspace management vane likely takes over conventional file storage, Gall or a successor.)  However, in its current instantiation, Clay exhibits some notable characteristics.
+
+Perry1987:  https://users.ece.utexas.edu/~perry/work/papers/icse9b.pdf
+and refs
+
+Yarvin2016: https://urbit.org/blog/toward-a-new-clay
+
 
 \printbibliography
 \end{document}
