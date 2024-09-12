@@ -14,8 +14,8 @@
 \fancyhead{}
 \fancyfoot[L]{{\footnotesize
               %% We toggle between these:
-              Manuscript submitted for review.\\
-              % {\it Urbit Systems Technical Journal} I:1 (2024):  1–3. \\
+              % Manuscript submitted for review.\\
+              {\it Urbit Systems Technical Journal} I:2 (2024):  33–48. \\
               ~ \\
               Address author correspondence to \authorpatp.
               }}
@@ -42,7 +42,7 @@
 
 % We will adjust page numbering in final editing.
 \pagenumbering{arabic}
-\setcounter{page}{1}
+\setcounter{page}{33}
 
 \tableofcontents
 
@@ -50,7 +50,7 @@
 
 A revision control system\footnote{Also “version control system” ({\sc vcs}); “source control system”.} is responsible for tracking the state and history of assets and asset changes within a particular continuity.  It may also manage the production of assets through a build system, as used for instance by a continuous integration/continuous deployment (CI/CD) workflow.  Trivially, an {\sc rcs} is a logical filesystem:  a database for managing files.  (Conventional {\sc rcs}s are agnostic to the underlying disk hardware, however.\footnote{Compare other logical file systems:  network file systems like Microsoft Server Message Block ({\sc smb}) drives or distributed file systems like the Hadoop Distributed File System ({\sc hdfs}) or the InterPlanetary File System ({\sc ipfs}).})  Computer revision control systems have developed from the 1960s onwards once hard drives permitted files to be stored on tape rather than simply as punchcard files.  Succeeding generations have introduced new approaches and features, converging more or less on the broad functionality today afforded by Git \citep{Torvalds2005} in its elaborated form as a distributed source control system.\footnote{Notably, Git has seemingly failed to fulfill its original promise of being a fully decentralized {\sc rcs}:  most users prefer to use the affordances of centralized Git services such as GitHub or GitLab.}  Much care has been taken to treat the problem of dependencies (e.g. \citet{Ball2015}) and efficient user interfaces (e.g. GitHub, GitLab, etc.).  However, although some modest interest has been expressed for a more complete notion of type in revision control, no current system known to the authors besides Urbit's Clay fully implements a typed revision-controlled filesystem.  In this article, we explore the approach of current {\sc rcs}s and elaborate Clay's contributions to the ongoing task of information management and auditable, reproducible source builds.
 
-\section[{A History of Type in {\sc rcs}s}]{A History of Type in RCSs}
+\section{Type in Revision Control Systems}
 
 The problem of type in revision control has been of both academic and practical interest for decades \citep{Perry1987}.  Essentially, can file artifacts be organized and classified in such a way as to make them susceptible of comparison across their history?  The simplest arrangement which is commonly made is to designate a file as either plaintext or binary.  A plaintext file can be updated by specifying the character offset and run length to be replaced (an example of a “diff”, or difference between two examples of text; typically these are resolved at the line level rather than character level).  Plaintext files, whether {\sc ascii} or some form of {\sc utf}, are defined by a regular format with well-understood and predictable symbol widths and offsets.  For instance, a little-endian representation of the text \texttt{'clay'} would be reproduced in {\sc ascii} hexadecimal as \texttt{0x7961.6c63} and {\sc ascii} binary as \texttt{0b111.1001.0110.0001.0110.1100.0110.0011}.  (In binary, each character has a leading zero; that is, each entry is seven bits wide plus a 1-bit zero header.)  In contrast, binary files (which is a byword for “everything else”) have arbitrary layout and offset; it may be difficult to determine how and why to compare two revisions of any given file.  Many {\sc rcs}s simply treat all registered data as byte streams.
 
@@ -85,7 +85,7 @@ Thus we must consider two intersecting notions of file type:
 \end{enumerate}
 
 \noindent
-The employment of an intermediate representation allows us to track changes to files and manage their history—state—more effectively.  Consider the popular JavaScript framework React \citep{React}, aspects of which were developed to resolve difficulties with slow repainting in browsers (for a popular explanation, see \citeauthor{Baer2018} (\citeyear{Baer2018}), chapter 1).  React's virtual Document Object Model ({\sc dom}) system acts as an intermediate representation between the actual {\sc dom} and the developer's code.  When a developer updates the virtual {\sc dom}, the framework compares the new virtual {\sc dom} with the previous virtual {\sc dom} and updates the real {\sc dom} only if necessary.  This allows React to optimize the rendering process and improve performance.  It also means that we can consider the structural representation of the {\sc dom} object as an intermediate representation, and the production and application of the diff as a type-aware {\sc rcs} operation.  Higher-level interfaces like Microsoft Word's “Track Changes” feature \citep{MS2024} similarly resolves diffs across text and formatting within a document, an artifact processed from a file into a user-friendly representation.  While the “Track Changes” user interface is optimized for interactivity, conceptually it is quite similar to conventional merge tools from {\sc rcs}s, and de facto resolves the same sorts of diffs for its particular file type.  (Indeed, one can imagine a Word-aware command-line {\sc rcs} that could meaningfully merge changes to a Word document, rather than simply storing successive copies of the file.)  Thus a significant part of managing typed file data is deciding what the input, output, and diffs should look like, and the remainder is systematic application of these rules to the data.
+The employment of an intermediate representation allows us to track changes to files and manage their history—state—more effectively.  Consider the popular JavaScript framework React \citep{React}, aspects of which were developed to resolve difficulties with slow repainting in browsers (for a popular explanation, see \citeauthor{Baer2018} (\citeyear{Baer2018}), chapter 1).  React's virtual Document Object Model ({\sc dom}) system acts as an intermediate representation between the actual {\sc dom} and the developer's code.  When a developer updates the virtual {\sc dom}, the framework compares the new virtual {\sc dom} with the previous virtual {\sc dom} and updates the real {\sc dom} only if necessary.  This allows React to optimize the rendering process and improve performance.  It also means that we can consider the structural representation of the {\sc dom} object as an intermediate representation, and the production and application of the diff as a type-aware {\sc rcs} operation.  Higher-level interfaces like Microsoft Word's “Track Changes” feature \citep{MS2024} similarly resolves diffs across text and formatting within a document, an artifact processed from a file into a user-friendly representation.  While the “Track Changes” user interface is optimized for interactivity, conceptually it is quite similar to conventional merge tools from {\sc rcs}s, and de facto resolves the same sorts of diffs for its particular file type.\footnote{Indeed, one can imagine a Word-aware command-line {\sc rcs} that could meaningfully merge changes to a Word document, rather than simply storing successive copies of the file.  The OpenDocument file form (\texttt{odt}, \texttt{ods}, \texttt{odg}, etc.) consists of \textsc{ZIP}-compressed \textsc{xml} files, which would be highly amenable to type-aware merge tools at the command line.}  Furthermore, the ``Source Code in Database'' (\textsc{scid}) approach parses all code into a database as an intermediate representation; this shares some features with a hypothetical type-aware \textsc{rcs}.  Thus a significant part of managing typed file data is deciding what the input, output, and diffs should look like, and the remainder is systematic application of these rules to the data.
 
 Given this frame, consider \citeauthor{Perry1987}'s taxonomy of version control for module interfaces:
 
@@ -103,7 +103,7 @@ In this scheme, contemporary Git-style {\sc rcs} is a ``weakly-typed'' {\sc rcs}
 \end{quote}
 
 \noindent
-Strongly-typed version control requires coupling to the build system, since the system must be aware of the structure of the data in order to apply diffs.  (Indeed, \citeauthor{Blackman2024} (\citeyear{Blackman2024}), pp. 6–7, in {\sc ustj} vol. 1 iss. 1, pp. 1—46, discussed one solution to the linking problem which is well-suited to Urbit's global namespace.)
+Strongly-typed version control requires coupling to the build system, since the system must be aware of the structure of the data in order to apply diffs.  (Indeed, \citeauthor{Blackman2024} (\citeyear{Blackman2024}), pp. 6–7, in \ssc{ustj} vol. 1 iss. 1, pp. 1—46, discussed one solution to the linking problem which is well-suited to Urbit's global namespace.)
 
 
 \section{Clay}
@@ -140,11 +140,11 @@ Each mark defines several standard arms:
 \end{enumerate}
 
 \noindent
-Marks do not need to be symmetrical or round-trip.  A {\sc json} input may yield an equivalent {\sc json} output but altered by structural whitespace.  Clay is also proactive in searching for possible mark paths—if an immediate conversion is not available, then a mutually available intermediary form may be used.  To implement a custom filetype, all that is required is the production of a suitable mark file.  Conversions from the filesystem require at a minimum a {\sc mime} mark file, which acts as the intermediary IR from the host OS.
+Marks do not need to be symmetrical or round-trip.  A {\sc json} input may yield an equivalent {\sc json} output but altered by structural whitespace.  Clay is also proactive in searching for possible mark paths—if an immediate conversion is not available, then a mutually available intermediary form may be used.  To implement a custom filetype, all that is required is the production of a suitable mark file.  Conversions from the filesystem require at a minimum a {\sc mime} mark file, which acts as the global intermediary from the host OS.
 
 \subsection{Desks}
 
-A desk is a filesystem continuity,\footnote{See \citet{Blackman2024a} in {\sc ustj} vol. 1 iss. 1, pp. 75—82, section 2.2 for an exposition of the so-called ``theory of a desk''.} and represents the main way that data are synchronized between Urbit instances (ships).  The state of a desk is a history of sequential commits, with each commit after the first having at least one parent commit.  Desks are often analogized to Git repositories.\footnote{Although desks are synchronized to the host OS as folders, this is a merely a convention, and other schemes of noun organization could employ other organizational abstractions.}  Each desk must contain sufficient internal data—especially marks—to produce its own code, given Hoon and the standard library (which are always available).
+A desk is a filesystem continuity,\footnote{See \citet{Blackman2024} in \ssc{ustj} vol. 1 iss. 1, pp. 1—46, section 2.2 for an exposition of the so-called ``theory of a desk''.} and represents the main way that data are synchronized between Urbit instances (ships).  The state of a desk is a history of sequential commits, with each commit after the first having at least one parent commit.  Desks are often analogized to Git repositories.\footnote{Although desks are synchronized to the host OS as folders, this is a merely a convention, and other schemes of noun organization could employ other organizational abstractions.}  Each desk must contain sufficient internal data—especially marks—to produce its own code, given Hoon and the standard library (which are always available).
 
 Since Clay is a global filesystem, it has to maintain information about both local and remote desks.  A local desk's state maintains information about noun data, build and mark cache state, userspace app state, various policies, and synchronization with the host OS filesystem.
 
@@ -207,7 +207,7 @@ As a vane of Arvo, Clay lives ``on Mars''; that is, it describes a logical files
 
 The {\sc posix}-compliant host OS supports a filesystem mirror of Clay files organized by desk.  Importantly, while these files can be synced to Clay, they are not the canonical reference for each (which lives in {\sc lmbd}).  Clay maintains a ``sync duct'' with the runtime, which upon receipt of a \lstinline[style=inlinecode]{%dirk} task produces a list of file changes each way and implements the latest changes.\footnote{The relevant code is in \github{urbit/vere} at \lstinline[style=inlinecode]{/vere/io/unix.c}.}
 
-In principle, as we have intimated, an {\sc rcs} may abstract away from the file as the fundamental artifact being tracked.  While Clay does not fully commit to this, in a concession to its {\sc posix}-compliant host OS, it gestures towards the possibility of conceiving of build sources and artifacts as objects (nouns) other than files.  Since Urbit ``unifies'' nouns (that is, it structurally stores only one copy of a noun and maintains references to that shared value), repetition of critical resources across desks does not lead to filesystem bloat.  (See \citet{Blackman2024a} in {\sc ustj} vol. 1 iss. 1, pp. 75—82, for details.)
+In principle, as we have intimated, an {\sc rcs} may abstract away from the file as the fundamental artifact being tracked.  While Clay does not fully commit to this, in a concession to its {\sc posix}-compliant host OS, it gestures towards the possibility of conceiving of build sources and artifacts as objects (nouns) other than files.  Since Urbit ``unifies'' nouns (that is, it structurally stores only one copy of a noun and maintains references to that shared value), repetition of critical resources across desks does not lead to filesystem bloat.  (See \citet{Blackman2024a} in \ssc{ustj} vol. 1 iss. 1, pp. 75—82, for details.)
 
 \subsection{Building Code}
 
@@ -240,7 +240,7 @@ Alternatively, the build system, {\sc rcs}, and application engine fuse into a s
 
 \section{Conclusion}
 
-In its current instantiation, Clay exhibits some notable characteristics as a typed revision control system.  It is capable of tracking file changes at a structural level, permitting meaningful diffs and merges for files of the same mark.  It is also capable of converting between marks, permitting a more flexible approach to file type than the conventional text/binary dichotomy of Git and other {\sc rcs}s.  However, the future of userspace and code building is still in flux and may see a reworking of the Clay vane to better suit the needs of developers and users.
+In its current instantiation, Clay exhibits some notable characteristics as a typed revision control system.  It is capable of tracking file changes at a structural level, permitting meaningful diffs and merges for files of the same mark.  It is also capable of converting between marks, permitting a more flexible approach to file type than the conventional text/binary dichotomy of Git and other {\sc rcs}s.  However, the future of userspace and code building is still in flux and may see a reworking of the Clay vane to better suit the needs of developers and users.\tombstone{}
 
 \selectlanguage{USenglish}
 \printbibliography
